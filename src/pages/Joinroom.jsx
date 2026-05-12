@@ -5,16 +5,11 @@ import { supabase } from '../lib/supabase'
 import useAppStore from '../store/useAppStore'
 import PageWrapper from '../components/PageWrapper'
 
-function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
-
-export default function CreateRoom() {
+export default function JoinRoom() {
   const navigate = useNavigate()
   const { setRoom, setCurrentMember, setIsCreator } = useAppStore()
 
-  const [roomName, setRoomName]   = useState('')
+  const [code, setCode]           = useState('')
   const [myName, setMyName]       = useState('')
   const [rating, setRating]       = useState('')
   const [skills, setSkills]       = useState('')
@@ -22,35 +17,38 @@ export default function CreateRoom() {
   const [experiences, setExperiences] = useState('')
   const [loading, setLoading]     = useState(false)
 
-  async function handleCreate(e) {
+  async function handleJoin(e) {
     e.preventDefault()
-    if (!roomName.trim() || !myName.trim() || !rating) {
+    if (!code.trim() || !myName.trim() || !rating) {
       toast.error('Please fill in all required fields.')
-      return
-    }
-    if (Number(rating) < 1 || Number(rating) > 10) {
-      toast.error('Performance rating must be between 1 and 10.')
       return
     }
 
     setLoading(true)
     try {
-      const code = generateCode()
-
-      // 1 — Create the room
+      // Find the room
       const { data: room, error: roomErr } = await supabase
         .from('rooms')
-        .insert({ code, name: roomName.trim(), creator_name: myName.trim() })
-        .select()
+        .select('*')
+        .eq('code', code.trim().toUpperCase())
         .single()
-      if (roomErr) throw roomErr
+      if (roomErr || !room) { toast.error('Room not found. Check the code and try again.'); return }
+      if (room.status !== 'waiting') { toast.error('This room is no longer accepting members.'); return }
 
-      // 2 — Register creator as member #1
+      // Get current member count to assign next member_no
+      const { count } = await supabase
+        .from('members')
+        .select('id', { count: 'exact', head: true })
+        .eq('room_id', room.id)
+
+      const nextNo = (count || 0) + 1
+
+      // Register as member
       const { data: member, error: memErr } = await supabase
         .from('members')
         .insert({
           room_id: room.id,
-          member_no: 1,
+          member_no: nextNo,
           full_name: myName.trim(),
           performance_rating: Number(rating),
           skills: skills.trim() || null,
@@ -61,18 +59,15 @@ export default function CreateRoom() {
         .single()
       if (memErr) throw memErr
 
-      // 3 — Link creator_member_id back to room
-      await supabase.from('rooms').update({ creator_member_id: member.id }).eq('id', room.id)
-
-      setRoom({ ...room, creator_member_id: member.id })
+      setRoom(room)
       setCurrentMember(member)
-      setIsCreator(true)
+      setIsCreator(false)
 
-      toast.success('Room created!')
+      toast.success(`Joined as Member #${nextNo}!`)
       navigate('/lobby')
     } catch (err) {
       console.error(err)
-      toast.error('Failed to create room. Check your Supabase connection.')
+      toast.error('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -85,27 +80,28 @@ export default function CreateRoom() {
           <BackButton />
 
           <div style={{ marginBottom: '2rem' }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', marginBottom: '0.4rem' }}>Create a Room</h1>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', marginBottom: '0.4rem' }}>Join a Room</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              You'll be registered as Member #1 and become the room creator.
+              Enter the 6-character room code shared by your group leader.
             </p>
           </div>
 
-          <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {/* Room info */}
+          <form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div className="card">
-              <h2 style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem', fontFamily: 'var(--font-body)' }}>
-                Room Details
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div>
-                  <label className="label">Room / Session Name *</label>
-                  <input className="input-field" value={roomName} onChange={e => setRoomName(e.target.value)} placeholder="e.g. CS101 Group 4 Election" required />
-                </div>
+              <div>
+                <label className="label">Room Code *</label>
+                <input
+                  className="input-field"
+                  value={code}
+                  onChange={e => setCode(e.target.value.toUpperCase())}
+                  placeholder="e.g. XK92TF"
+                  maxLength={6}
+                  style={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.2em', fontSize: '1.2rem', textAlign: 'center' }}
+                  required
+                />
               </div>
             </div>
 
-            {/* My profile */}
             <div className="card">
               <h2 style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem', fontFamily: 'var(--font-body)' }}>
                 Your Profile
@@ -117,15 +113,15 @@ export default function CreateRoom() {
                 </div>
                 <div>
                   <label className="label">Performance Rating * <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(1 – 10)</span></label>
-                  <input className="input-field" type="number" min={1} max={10} value={rating} onChange={e => setRating(e.target.value)} placeholder="e.g. 8" required />
+                  <input className="input-field" type="number" min={1} max={10} value={rating} onChange={e => setRating(e.target.value)} placeholder="e.g. 7" required />
                 </div>
                 <div>
                   <label className="label">Skills <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
-                  <input className="input-field" value={skills} onChange={e => setSkills(e.target.value)} placeholder="e.g. Python, Project Management" />
+                  <input className="input-field" value={skills} onChange={e => setSkills(e.target.value)} placeholder="e.g. Design, Research" />
                 </div>
                 <div>
                   <label className="label">Strengths <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
-                  <input className="input-field" value={strengths} onChange={e => setStrengths(e.target.value)} placeholder="e.g. Leadership, Communication" />
+                  <input className="input-field" value={strengths} onChange={e => setStrengths(e.target.value)} placeholder="e.g. Creativity, Teamwork" />
                 </div>
                 <div>
                   <label className="label">Experiences <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
@@ -135,7 +131,7 @@ export default function CreateRoom() {
             </div>
 
             <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '0.9rem' }}>
-              {loading ? 'Creating…' : 'Create Room & Continue →'}
+              {loading ? 'Joining…' : 'Join Room →'}
             </button>
           </form>
         </div>
