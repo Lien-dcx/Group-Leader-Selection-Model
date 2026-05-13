@@ -9,7 +9,7 @@ import { generateRoomCode } from '../utils/votingTheory'
 
 export default function CreateRoom() {
   const navigate = useNavigate()
-  const { setRoom, setCurrentMember, setIsCreator } = useAppStore()
+  const { setRoom, setCurrentMember } = useAppStore()
   const [roomName, setRoomName] = useState('')
   const [form, setForm] = useState({
     name: '',
@@ -47,7 +47,7 @@ export default function CreateRoom() {
         .insert({
           room_id: roomData.id,
           member_no: 1,
-          full_name: form.name.trim(),   // FIX: was `name`
+          name: form.name.trim(),
           performance_rating: rating,
           skills: form.skills.trim() || null,
           strengths: form.strengths.trim() || null,
@@ -66,7 +66,6 @@ export default function CreateRoom() {
 
       setRoom({ ...roomData, creator_id: memberData.id })
       setCurrentMember(memberData)
-      setIsCreator(true)   // FIX: was missing
       toast.success('Room created!')
       navigate('/lobby')
     } catch (err) {
@@ -95,6 +94,7 @@ export default function CreateRoom() {
             You'll be registered as Member #1 and become the room creator.
           </p>
 
+          {/* Room Details */}
           <div className="glass-card" style={{ padding: 28, marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-dim)', marginBottom: 16 }}>
               ROOM DETAILS
@@ -112,6 +112,7 @@ export default function CreateRoom() {
             </div>
           </div>
 
+          {/* Your Profile */}
           <div className="glass-card" style={{ padding: 28, marginBottom: 20 }}>
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-dim)', marginBottom: 16 }}>
               YOUR PROFILE
