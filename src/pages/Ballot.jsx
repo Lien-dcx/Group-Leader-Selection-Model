@@ -156,7 +156,14 @@ export default function Ballot() {
               <div className="dot-pulse" style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}><span /><span /><span /></div>
             </div>
           ) : submitted ? (
-            <SubmittedState voteCount={voteCount} totalCount={totalCount} allVoted={allVoted} />
+            <SubmittedState
+              voteCount={voteCount}
+              totalCount={totalCount}
+              allVoted={allVoted}
+              isCreator={isCreator}
+              onEndVoting={endVoting}
+              ending={ending} 
+            />
           ) : (
             <>
               {/* Borda explanation */}
@@ -270,7 +277,7 @@ export default function Ballot() {
   )
 }
 
-function SubmittedState({ voteCount, totalCount, allVoted }) {
+function SubmittedState({ voteCount, totalCount, allVoted, isCreator, onEndVoting, ending }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
@@ -283,9 +290,20 @@ function SubmittedState({ voteCount, totalCount, allVoted }) {
             ? 'Everyone has voted. Waiting for the creator to reveal results.'
             : `Waiting for ${totalCount - voteCount} more member${totalCount - voteCount !== 1 ? 's' : ''} to vote…`}
         </p>
-        <div className="dot-pulse" style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
-          <span /><span /><span />
-        </div>
+        {isCreator ? (
+          <button
+            className="btn-primary"
+            onClick={onEndVoting}
+            disabled={ending}
+            style={{ width: '100%', padding: '0.9rem', fontSize: '0.95rem' }}
+          >
+            {ending ? 'Loading results…' : '👑 Reveal Results →'}
+          </button>
+        ) : (
+          <div className="dot-pulse" style={{ display: 'flex', justifyContent: 'center', gap: '5px' }}>
+            <span /><span /><span />
+          </div>
+        )}
       </div>
     </motion.div>
   )
