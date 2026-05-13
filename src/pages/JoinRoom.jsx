@@ -73,7 +73,7 @@ export default function JoinRoom() {
         .insert({
           room_id: foundRoom.id,
           member_no: nextNo,
-          name: form.name.trim(),
+          full_name: form.name.trim(),   // FIX: was `name`
           performance_rating: rating,
           skills: form.skills.trim() || null,
           strengths: form.strengths.trim() || null,
