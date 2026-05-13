@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 
 export default function JoinRoom() {
   const navigate = useNavigate()
-  const { setRoom, setCurrentMember, setMembers } = useAppStore()
+  const { setRoom, setCurrentMember } = useAppStore()
 
   const [step, setStep] = useState(1)
   const [code, setCode] = useState('')
@@ -87,7 +87,7 @@ export default function JoinRoom() {
 
       setRoom(foundRoom)
       setCurrentMember(member)
-      setMembers([...existingMembers, member])
+     // setMembers([...existingMembers, member])
       toast.success('Joined successfully!')
       navigate('/lobby')
     } catch (err) {
