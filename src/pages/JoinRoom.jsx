@@ -250,3 +250,13 @@ export default function JoinRoom() {
     </PageWrapper>
   )
 }
+
+function BackButton() {
+  const navigate = useNavigate()
+  return (
+    <button onClick={() => navigate('/')} className="btn-ghost" style={{ marginBottom: '1.5rem', padding: '0.5rem 0.9rem', fontSize: '0.82rem' }}>
+      ← Back
+    </button>
+  )
+}
+//Typo fixed
