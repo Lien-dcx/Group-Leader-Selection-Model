@@ -66,7 +66,12 @@ export default function JoinRoom() {
     }
     setLoading(true)
     try {
-      const nextNo = existingMembers.length + 1
+      const { count } = await supabase
+        .from('members')
+        .select('id', { count: 'exact', head: true })
+        .eq('room_id', foundRoom.id)
+
+      const nextNo = (count || 0) + 1
 
       const { data: member, error } = await supabase
         .from('members')

@@ -97,7 +97,7 @@ export default function PreVote() {
                   Projected Win Rate
                 </h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  {withRates.sort((a, b) => b.win_rate - a.win_rate).map((m, i) => (
+                  {withRates.sort((a, b) => b.projectedWinRate - a.projectedWinRate).map((m, i) => (
                     <motion.div
                       key={m.id}
                       initial={{ opacity: 0, x: -16 }}
@@ -171,14 +171,24 @@ export default function PreVote() {
                 >
                   {starting ? 'Opening ballots…' : '🗳 Start Voting →'}
                 </button>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '1rem' }}>
-                  <div className="dot-pulse" style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '0.5rem' }}>
-                    <span /><span /><span />
+                // ✅ Replace with this
+                ) : (
+                  <div>
+                    <div style={{ textAlign: 'center', padding: '1rem 1rem 1.25rem' }}>
+                      <div className="dot-pulse" style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '0.5rem' }}>
+                        <span /><span /><span />
+                      </div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Waiting for the creator to open the ballot…</p>
+                    </div>
+                    <button
+                      className="btn-primary"
+                      onClick={() => navigate('/ballot')}
+                      style={{ width: '100%', padding: '0.9rem', fontSize: '0.95rem' }}
+                    >
+                      🗳 Go to Ballot →
+                    </button>
                   </div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Waiting for the creator to open the ballot…</p>
-                </div>
-              )}
+                )}
             </>
           )}
         </div>
