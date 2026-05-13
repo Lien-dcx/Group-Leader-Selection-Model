@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 
 export default function JoinRoom() {
   const navigate = useNavigate()
-  const { setRoom, setCurrentMember, setMembers } = useAppStore()
+  const { setRoom, setCurrentMember } = useAppStore()
 
   const [step, setStep] = useState(1)
   const [code, setCode] = useState('')
@@ -73,7 +73,7 @@ export default function JoinRoom() {
         .insert({
           room_id: foundRoom.id,
           member_no: nextNo,
-          full_name: form.name.trim(),   // FIX: was `name`
+          name: form.name.trim(),
           performance_rating: rating,
           skills: form.skills.trim() || null,
           strengths: form.strengths.trim() || null,
@@ -87,7 +87,6 @@ export default function JoinRoom() {
 
       setRoom(foundRoom)
       setCurrentMember(member)
-      setMembers([...existingMembers, member])
       toast.success('Joined successfully!')
       navigate('/lobby')
     } catch (err) {
