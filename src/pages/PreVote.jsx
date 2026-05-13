@@ -39,6 +39,13 @@ export default function PreVote() {
     setLoading(false)
   }
 
+  const { data: roomData } = await supabase
+    .from('rooms').select('status').eq('id', room.id).single()
+  if (roomData?.status === 'voting') {
+    updateRoomStatus('voting')
+    navigate('/ballot')
+  }
+
   async function startVoting() {
     setStarting(true)
     const { error } = await supabase.from('rooms').update({ status: 'voting' }).eq('id', room.id)
