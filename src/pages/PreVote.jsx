@@ -22,7 +22,7 @@ export default function PreVote() {
       .channel(`prevote-${room.id}`)
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'rooms',
-        filter: `id=eq.${room.id}`,
+        filter: `id=eq.${room.id}`, 
       }, payload => {
         if (payload.new.status === 'voting') {
           updateRoomStatus('voting')
@@ -44,7 +44,7 @@ export default function PreVote() {
   if (roomData?.status === 'voting') {
     updateRoomStatus('voting')
     navigate('/ballot')
-  }
+  } // Hello
 
   async function startVoting() {
     setStarting(true)
