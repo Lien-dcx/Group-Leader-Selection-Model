@@ -36,7 +36,7 @@ export default function App() {
           <Route path="/create"      element={<CreateRoom />} />
           <Route path="/join"        element={<JoinRoom />} />
           <Route path="/lobby"       element={<Lobby />} />
-          <Route path="/prevote"     element={<PreVote />} />
+          <Route path="/pre-vote"     element={<PreVote />} />
           <Route path="/ballot"      element={<Ballot />} />
           <Route path="/results"     element={<Results />} />
           <Route path="/goodbye"     element={<Goodbye />} />
