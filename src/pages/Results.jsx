@@ -54,7 +54,7 @@ export default function Results() {
       ['Rank', 'Member #', 'Name', 'Borda Score', 'First Choice Votes', 'Performance Rating'],
       ...ranked.map((m, i) => {
         const fc = firstChoice.find(f => f.id === m.id)
-        return [i + 1, m.member_no, m.full_name, m.borda_score, fc?.first_choice_votes ?? 0, m.performance_rating]
+        return [i + 1, m.member_no, m.name, m.borda_score, fc?.first_choice_votes ?? 0, m.performance_rating]
       }),
     ]
     const csv = rows.map(r => r.join(',')).join('\n')
@@ -160,7 +160,7 @@ export default function Results() {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            {m.full_name}
+                            {m.name}
                             {i === 0 && <span style={{ fontSize: '0.9rem' }}>👑</span>}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -214,7 +214,7 @@ export default function Results() {
                     title="Veto Player(s)"
                     color="var(--accent-blue)"
                     colorDim="var(--accent-blue-dim)"
-                    member={banzhaf.vetoPlayers.length > 0 ? banzhaf.vetoPlayers.map(m => m.full_name).join(', ') : null}
+                    member={banzhaf.vetoPlayers.length > 0 ? banzhaf.vetoPlayers.map(m => m.name).join(', ') : null}
                     noMemberText="No veto players identified."
                     explanation="A veto player can block any decision. Without their support, no majority is possible — but they aren't powerful enough to win alone."
                   />
@@ -223,7 +223,7 @@ export default function Results() {
                     title="Dummy Player(s)"
                     color="var(--text-muted)"
                     colorDim="var(--bg-raised)"
-                    member={banzhaf.dummies.length > 0 ? banzhaf.dummies.map(m => m.full_name).join(', ') : null}
+                    member={banzhaf.dummies.length > 0 ? banzhaf.dummies.map(m => m.name).join(', ') : null}
                     noMemberText="No dummy players — everyone received votes."
                     explanation="A dummy received zero Borda points. Their presence or absence never changes the outcome of any coalition."
                   />

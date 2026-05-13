@@ -213,7 +213,7 @@ export default function Ballot() {
                         {/* Member info */}
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                            {m.full_name}
+                            {m.name}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                             Member #{m.member_no} · Rating {m.performance_rating}/10

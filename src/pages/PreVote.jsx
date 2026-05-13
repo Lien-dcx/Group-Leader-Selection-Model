@@ -51,7 +51,7 @@ export default function PreVote() {
 
   const withRates = computeProjectedWinRates(members)
   const groupScore = computeGroupSuccessScore(members)
-  const maxRate = Math.max(...withRates.map(m => m.win_rate), 0)
+  const maxRate = Math.max(...withRates.map(m => m.projectedWinRate), 0)
 
   return (
     <PageWrapper>
@@ -105,13 +105,13 @@ export default function PreVote() {
                       transition={{ delay: i * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontSize: '0.85rem' }}>
-                        <span style={{ fontWeight: 600 }}>{m.member_no}. {m.full_name}</span>
-                        <span style={{ color: 'var(--accent-gold)', fontWeight: 700 }}>{m.win_rate}%</span>
+                        <span style={{ fontWeight: 600 }}>{m.member_no}. {m.name}</span>
+                        <span style={{ color: 'var(--accent-gold)', fontWeight: 700 }}>{m.projectedWinRate}%</span>
                       </div>
                       <div style={{ height: 8, background: 'var(--bg-raised)', borderRadius: 4, overflow: 'hidden' }}>
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${(m.win_rate / maxRate) * 100}%` }}
+                          animate={{ width: `${(m.projectedWinRate / maxRate) * 100}%` }}
                           transition={{ delay: 0.2 + i * 0.06, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                           style={{
                             height: '100%',
@@ -147,14 +147,14 @@ export default function PreVote() {
                       <tr key={m.id} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)' }}>{m.member_no}</td>
                         <td style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>
-                          {m.full_name}
+                          {m.name}
                           {m.id === currentMember?.id && <span style={{ color: 'var(--accent-blue)', fontSize: '0.72rem', marginLeft: '0.4rem' }}>(you)</span>}
                         </td>
                         <td style={{ padding: '0.65rem 0.75rem' }}>
                           <span style={{ color: ratingColor(m.performance_rating), fontWeight: 700 }}>{m.performance_rating}</span>
                           <span style={{ color: 'var(--text-muted)' }}>/10</span>
                         </td>
-                        <td style={{ padding: '0.65rem 0.75rem', color: 'var(--accent-gold)', fontWeight: 600 }}>{m.win_rate}%</td>
+                        <td style={{ padding: '0.65rem 0.75rem', color: 'var(--accent-gold)', fontWeight: 600 }}>{m.projectedWinRate}%</td>
                         <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{m.skills || '—'}</td>
                       </tr>
                     ))}
