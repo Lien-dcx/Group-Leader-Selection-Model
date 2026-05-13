@@ -1,78 +1,76 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { supabase } from '../lib/supabase'
-import useAppStore from '../store/useAppStore'
 import PageWrapper from '../components/PageWrapper'
-
-function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
+import useAppStore from '../store/useAppStore'
+import { supabase } from '../lib/supabase'
+import { generateRoomCode } from '../utils/votingTheory'
 
 export default function CreateRoom() {
   const navigate = useNavigate()
-  const { setRoom, setCurrentMember, setIsCreator } = useAppStore()
+  const { setRoom, setCurrentMember } = useAppStore()
+  const [roomName, setRoomName] = useState('')
+  const [form, setForm] = useState({
+    name: '',
+    performance_rating: '',
+    skills: '',
+    strengths: '',
+    experiences: '',
+  })
+  const [loading, setLoading] = useState(false)
 
-  const [roomName, setRoomName]   = useState('')
-  const [myName, setMyName]       = useState('')
-  const [rating, setRating]       = useState('')
-  const [skills, setSkills]       = useState('')
-  const [strengths, setStrengths] = useState('')
-  const [experiences, setExperiences] = useState('')
-  const [loading, setLoading]     = useState(false)
-
-  async function handleCreate(e) {
-    e.preventDefault()
-    if (!roomName.trim() || !myName.trim() || !rating) {
-      toast.error('Please fill in all required fields.')
+  const handleCreate = async () => {
+    if (!roomName.trim() || !form.name.trim() || !form.performance_rating) {
+      toast.error('Please fill in all required fields')
       return
     }
-    if (Number(rating) < 1 || Number(rating) > 10) {
-      toast.error('Performance rating must be between 1 and 10.')
+    const rating = parseInt(form.performance_rating)
+    if (isNaN(rating) || rating < 1 || rating > 10) {
+      toast.error('Performance rating must be between 1 and 10')
       return
     }
-
     setLoading(true)
     try {
-      const code = generateCode()
+      const code = generateRoomCode()
 
-      // 1 — Create the room
-      const { data: room, error: roomErr } = await supabase
+      const { data: roomData, error: roomErr } = await supabase
         .from('rooms')
-        .insert({ code, name: roomName.trim(), creator_name: myName.trim() })
+        .insert({ code, name: roomName.trim(), status: 'waiting' })
         .select()
         .single()
+
       if (roomErr) throw roomErr
 
-      // 2 — Register creator as member #1
-      const { data: member, error: memErr } = await supabase
+      const { data: memberData, error: memErr } = await supabase
         .from('members')
         .insert({
-          room_id: room.id,
+          room_id: roomData.id,
           member_no: 1,
-          full_name: myName.trim(),
-          performance_rating: Number(rating),
-          skills: skills.trim() || null,
-          strengths: strengths.trim() || null,
-          experiences: experiences.trim() || null,
+          name: form.name.trim(),
+          performance_rating: rating,
+          skills: form.skills.trim() || null,
+          strengths: form.strengths.trim() || null,
+          experiences: form.experiences.trim() || null,
+          is_creator: true,
         })
         .select()
         .single()
+
       if (memErr) throw memErr
 
-      // 3 — Link creator_member_id back to room
-      await supabase.from('rooms').update({ creator_member_id: member.id }).eq('id', room.id)
+      await supabase
+        .from('rooms')
+        .update({ creator_id: memberData.id })
+        .eq('id', roomData.id)
 
-      setRoom({ ...room, creator_member_id: member.id })
-      setCurrentMember(member)
-      setIsCreator(true)
-
+      setRoom({ ...roomData, creator_id: memberData.id })
+      setCurrentMember(memberData)
       toast.success('Room created!')
       navigate('/lobby')
     } catch (err) {
+      toast.error('Failed to create room. Check your Supabase config.')
       console.error(err)
-      toast.error('Failed to create room. Check your Supabase connection.')
     } finally {
       setLoading(false)
     }
@@ -80,75 +78,125 @@ export default function CreateRoom() {
 
   return (
     <PageWrapper>
-      <div className="page" style={{ paddingTop: '3rem' }}>
-        <div className="page-inner">
-          <BackButton />
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          style={{ width: '100%', maxWidth: 600 }}
+        >
+          <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, marginBottom: 28, display: 'flex', alignItems: 'center', gap: 6 }}>
+            ← Back
+          </button>
 
-          <div style={{ marginBottom: '2rem' }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', marginBottom: '0.4rem' }}>Create a Room</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              You'll be registered as Member #1 and become the room creator.
-            </p>
+          <h2 className="font-display" style={{ fontSize: 36, marginBottom: 6 }}>Create a Room</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 28 }}>
+            You'll be registered as Member #1 and become the room creator.
+          </p>
+
+          {/* Room Details */}
+          <div className="glass-card" style={{ padding: 28, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-dim)', marginBottom: 16 }}>
+              ROOM DETAILS
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                ROOM / SESSION NAME <span style={{ color: '#f87171' }}>*</span>
+              </label>
+              <input
+                className="input-base"
+                placeholder="e.g. CS102 Group 4"
+                value={roomName}
+                onChange={e => setRoomName(e.target.value)}
+              />
+            </div>
           </div>
 
-          <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {/* Room info */}
-            <div className="card">
-              <h2 style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem', fontFamily: 'var(--font-body)' }}>
-                Room Details
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div>
-                  <label className="label">Room / Session Name *</label>
-                  <input className="input-field" value={roomName} onChange={e => setRoomName(e.target.value)} placeholder="e.g. CS101 Group 4 Election" required />
-                </div>
-              </div>
+          {/* Your Profile */}
+          <div className="glass-card" style={{ padding: 28, marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-dim)', marginBottom: 16 }}>
+              YOUR PROFILE
             </div>
 
-            {/* My profile */}
-            <div className="card">
-              <h2 style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem', fontFamily: 'var(--font-body)' }}>
-                Your Profile
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div>
-                  <label className="label">Full Name *</label>
-                  <input className="input-field" value={myName} onChange={e => setMyName(e.target.value)} placeholder="Your full name" required />
-                </div>
-                <div>
-                  <label className="label">Performance Rating * <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(1 – 10)</span></label>
-                  <input className="input-field" type="number" min={1} max={10} value={rating} onChange={e => setRating(e.target.value)} placeholder="e.g. 8" required />
-                </div>
-                <div>
-                  <label className="label">Skills <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
-                  <input className="input-field" value={skills} onChange={e => setSkills(e.target.value)} placeholder="e.g. Python, Project Management" />
-                </div>
-                <div>
-                  <label className="label">Strengths <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
-                  <input className="input-field" value={strengths} onChange={e => setStrengths(e.target.value)} placeholder="e.g. Leadership, Communication" />
-                </div>
-                <div>
-                  <label className="label">Experiences <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
-                  <textarea className="input-field" value={experiences} onChange={e => setExperiences(e.target.value)} placeholder="Brief background..." rows={2} style={{ resize: 'vertical' }} />
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  FULL NAME <span style={{ color: '#f87171' }}>*</span>
+                </label>
+                <input
+                  className="input-base"
+                  placeholder="Your full name"
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  PERFORMANCE RATING <span style={{ color: '#f87171' }}>*</span>
+                  <span style={{ fontWeight: 400, marginLeft: 4 }}>(1 – 10)</span>
+                </label>
+                <input
+                  className="input-base"
+                  type="number"
+                  min={1}
+                  max={10}
+                  placeholder="e.g. 8"
+                  value={form.performance_rating}
+                  onChange={e => setForm(f => ({ ...f, performance_rating: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  SKILLS <span style={{ fontWeight: 400, color: 'var(--text-dim)' }}>(OPTIONAL)</span>
+                </label>
+                <input
+                  className="input-base"
+                  placeholder="e.g. Python, Project Management"
+                  value={form.skills}
+                  onChange={e => setForm(f => ({ ...f, skills: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  STRENGTHS <span style={{ fontWeight: 400, color: 'var(--text-dim)' }}>(OPTIONAL)</span>
+                </label>
+                <input
+                  className="input-base"
+                  placeholder="e.g. Leadership, Communication"
+                  value={form.strengths}
+                  onChange={e => setForm(f => ({ ...f, strengths: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  EXPERIENCES <span style={{ fontWeight: 400, color: 'var(--text-dim)' }}>(OPTIONAL)</span>
+                </label>
+                <textarea
+                  className="input-base"
+                  placeholder="Brief background..."
+                  rows={3}
+                  value={form.experiences}
+                  onChange={e => setForm(f => ({ ...f, experiences: e.target.value }))}
+                  style={{ resize: 'vertical' }}
+                />
               </div>
             </div>
+          </div>
 
-            <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '0.9rem' }}>
-              {loading ? 'Creating…' : 'Create Room & Continue →'}
-            </button>
-          </form>
-        </div>
+          <button
+            className="btn-primary"
+            onClick={handleCreate}
+            disabled={loading}
+            style={{ width: '100%', padding: '16px', fontSize: 16 }}
+          >
+            {loading ? 'Creating...' : 'Create Room & Continue →'}
+          </button>
+        </motion.div>
       </div>
     </PageWrapper>
-  )
-}
-
-function BackButton() {
-  const navigate = useNavigate()
-  return (
-    <button onClick={() => navigate('/')} className="btn-ghost" style={{ marginBottom: '1.5rem', padding: '0.5rem 0.9rem', fontSize: '0.82rem' }}>
-      ← Back
-    </button>
   )
 }
