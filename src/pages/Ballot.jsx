@@ -52,7 +52,7 @@ export default function Ballot() {
 
     // Check if already voted
     const { data: myBallot } = await supabase
-      .from('ballots').select('id').eq('room_id', room.id).eq('voter_id', currentMember.id).single()
+      .from('ballots').select('id').eq('room_id', room.id).eq('voter_id', currentMember.id).maybeSingle()
     if (myBallot) setSubmitted(true)
 
     await fetchVoteCount()
