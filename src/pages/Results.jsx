@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import useAppStore from '../store/useAppStore'
 import {
-  computebordaScores,
+  computeBordaScores,
   classifyPowerRoles,
 } from '../utils/votingTheory'
 import PageWrapper from '../components/PageWrapper'
@@ -19,10 +19,17 @@ export default function Results() {
   const [loading, setLoading]     = useState(true)
   const [ending, setEnding]       = useState(false)
 
+  const [hydrated, setHydrated] = useState(false)
+
   useEffect(() => {
+    setHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return
     if (!room || !currentMember) { navigate('/'); return }
     fetchResults()
-  }, [room])
+}, [hydrated, room])
 
   async function fetchResults() {
     const [{ data: members, error: mErr }, { data: ballots, error: bErr }] = await Promise.all([
