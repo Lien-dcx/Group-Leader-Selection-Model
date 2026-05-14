@@ -40,7 +40,7 @@ export default function Results() {
     if (!members || !ballots) { setLoading(false); return }
 
     // Borda scores
-    const r = computeBordaScores(ballots, members)
+    const r = computebordaScores(ballots, members)
 
     // First-choice votes — rank === 1 means top pick
     const fcMap = {}
