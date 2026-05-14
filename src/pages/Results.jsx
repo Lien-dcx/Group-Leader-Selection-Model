@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import useAppStore from '../store/useAppStore'
 import {
-  computeBordaScores,
+  computebordaScores,
   classifyPowerRoles,
 } from '../utils/votingTheory'
 import PageWrapper from '../components/PageWrapper'
