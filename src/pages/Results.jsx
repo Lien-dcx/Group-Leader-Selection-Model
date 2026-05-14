@@ -29,15 +29,23 @@ export default function Results() {
       supabase.from('members').select('*').eq('room_id', room.id).order('member_no'),
       supabase.from('ballots').select('*').eq('room_id', room.id),
     ])
-    if (!members || !ballots) { setLoading(false); return }
+    if (!members || !ballots || ballots.length === 0) {
+      toast.error('No ballots found for this room.')
+      setLoading(false)
+      return
+    }
 
     const r = computeBordaScores(ballots, members)
     const fc = computeBordaScores(ballots, members)
-    const bz = classifyPowerRoles(r)
+    const bzArray = classifyPowerRoles(r)
+    setBanzhaf({
+      dictator: bzArray.find(m => m.powerRole === 'dictator') || null,
+      vetoPlayers: bzArray.filter(m => m.powerRole === 'veto'),
+      dummies: bzArray.filter(m => m.powerRole === 'dummy'),
+    })
 
     setRanked(r)
     setFirstChoice(fc)
-    setBanzhaf(bz)
     setLoading(false)
   }
 
