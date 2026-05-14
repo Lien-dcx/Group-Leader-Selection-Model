@@ -29,6 +29,10 @@ export default function Results() {
       supabase.from('members').select('*').eq('room_id', room.id).order('member_no'),
       supabase.from('ballots').select('*').eq('room_id', room.id),
     ])
+
+    console.log('members:', members)
+    console.log('ballots:', ballots)
+
     if (!members || !ballots || ballots.length === 0) {
       toast.error('No ballots found for this room.')
       setLoading(false)
@@ -36,8 +40,11 @@ export default function Results() {
     }
 
     const r = computeBordaScores(ballots, members)
-    const fc = computeBordaScores(ballots, members)
+    console.log('bordaScores result:', r)
+
     const bzArray = classifyPowerRoles(r)
+    console.log('banzhaf:', bzArray)
+
     setBanzhaf({
       dictator: bzArray.find(m => m.powerRole === 'dictator') || null,
       vetoPlayers: bzArray.filter(m => m.powerRole === 'veto'),
@@ -45,7 +52,7 @@ export default function Results() {
     })
 
     setRanked(r)
-    setFirstChoice(fc)
+    setFirstChoice(r)
     setLoading(false)
   }
 
