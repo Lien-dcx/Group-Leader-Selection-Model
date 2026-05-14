@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import useAppStore from '../store/useAppStore'
 import {
-  computeBordaScores,
+  computebordaScores,
   classifyPowerRoles,
 } from '../utils/votingTheory'
 import PageWrapper from '../components/PageWrapper'
@@ -25,34 +25,34 @@ export default function Results() {
   }, [room])
 
   async function fetchResults() {
-    const [{ data: members }, { data: ballots }] = await Promise.all([
+    const [{ data: members, error: mErr }, { data: ballots, error: bErr }] = await Promise.all([
       supabase.from('members').select('*').eq('room_id', room.id).order('member_no'),
       supabase.from('ballots').select('*').eq('room_id', room.id),
     ])
+    if (mErr || bErr) { toast.error('Failed to load results.'); setLoading(false); return }
+    if (!members || !ballots) { setLoading(false); return }
 
-    console.log('members:', members)
-    console.log('ballots:', ballots)
-
-    if (!members || !ballots || ballots.length === 0) {
-      toast.error('No ballots found for this room.')
-      setLoading(false)
-      return
-    }
-
+    // Borda scores
     const r = computeBordaScores(ballots, members)
-    console.log('bordaScores result:', r)
 
-    const bzArray = classifyPowerRoles(r)
-    console.log('banzhaf:', bzArray)
-
-    setBanzhaf({
-      dictator: bzArray.find(m => m.powerRole === 'dictator') || null,
-      vetoPlayers: bzArray.filter(m => m.powerRole === 'veto'),
-      dummies: bzArray.filter(m => m.powerRole === 'dummy'),
+    // First-choice votes — rank === 1 means top pick
+    const fcMap = {}
+    members.forEach(m => { fcMap[m.id] = 0 })
+    ballots.forEach(ballot => {
+      const top = ballot.rankings.find(entry => entry.rank === 1)
+      if (top && fcMap[top.candidate_id] !== undefined) fcMap[top.candidate_id]++
     })
+    const rWithFC = r.map(m => ({ ...m, first_choice_votes: fcMap[m.id] || 0 }))
 
-    setRanked(r)
-    setFirstChoice(r)
+    // Banzhaf — classifyPowerRoles returns an array, reshape it
+    const classified = classifyPowerRoles(rWithFC)
+    const dictator   = classified.find(m => m.powerRole === 'dictator') || null
+    const vetoPlayers = classified.filter(m => m.powerRole === 'veto')
+    const dummies     = classified.filter(m => m.powerRole === 'dummy')
+
+    setRanked(rWithFC)
+    setFirstChoice(rWithFC)
+    setBanzhaf({ dictator, vetoPlayers, dummies })
     setLoading(false)
   }
 

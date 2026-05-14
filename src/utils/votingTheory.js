@@ -20,7 +20,7 @@
 // @param {Array} members   - array of member objects
 // @returns {Array} members sorted by Borda score descending
 // ------------------------------------------------------------
-export function computeBordaScores(ballots, members) {
+export function computebordaScores(ballots, members) {
   const n = members.length // total candidates per ballot
 
   // Initialize score map
@@ -120,7 +120,7 @@ export function computeGroupSuccessScore(members) {
 //   - Quota = 50% of total Borda points + 1 (simple majority)
 //   - We enumerate coalitions (feasible for ≤ 10 members)
 //
-// @param {Array} scoredMembers - output of computeBordaScores()
+// @param {Array} scoredMembers - output of computebordaScores()
 // @returns {Array} scoredMembers with powerRole added:
 //   'dictator' | 'veto' | 'dummy' | 'regular'
 // ------------------------------------------------------------
