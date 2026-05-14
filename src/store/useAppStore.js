@@ -14,12 +14,14 @@ export const useAppStore = create(
 
       // The current user's member record
       currentMember: null, // { id, room_id, member_no, full_name, ... }
-      setCurrentMember: (member) => set({ currentMember: member }),
+      setCurrentMember: (member) => set({ 
+        currentMember: member,
+        isCreator: member?.is_creator ?? false, }),
 
       // Whether the current user is the room creator
       isCreator: false,
       setIsCreator: (val) => set({ isCreator: val }),
-
+      
       // Clear everything on exit
       clearSession: () => set({ room: null, currentMember: null, isCreator: false }),
     }),

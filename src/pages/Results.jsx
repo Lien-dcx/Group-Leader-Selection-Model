@@ -45,7 +45,8 @@ export default function Results() {
     setEnding(true)
     const winner = ranked[0]
     await supabase.from('rooms').update({ status: 'finished' }).eq('id', room.id)
-    useAppStore.setState({ room: { ...room, winner_name: winner?.full_name } })
+    //useAppStore.setState({ room: { ...room, winner_name: winner?.name } })
+    useAppStore.setState({ results: ranked }) 
     navigate('/goodbye')
   }
 
@@ -54,7 +55,7 @@ export default function Results() {
       ['Rank', 'Member #', 'Name', 'Borda Score', 'First Choice Votes', 'Performance Rating'],
       ...ranked.map((m, i) => {
         const fc = firstChoice.find(f => f.id === m.id)
-        return [i + 1, m.member_no, m.name, m.borda_score, fc?.first_choice_votes ?? 0, m.performance_rating]
+        return [i + 1, m.member_no, m.name, m.bordaScore, fc?.first_choice_votes ?? 0, m.performance_rating]
       }),
     ]
     const csv = rows.map(r => r.join(',')).join('\n')
@@ -75,7 +76,7 @@ export default function Results() {
 
   if (!room || !currentMember) return null
   const winner = ranked[0]
-  const maxScore = Math.max(...ranked.map(m => m.borda_score), 1)
+  const maxScore = Math.max(...ranked.map(m => m.bordaScore), 1)
 
   return (
     <PageWrapper>
@@ -117,10 +118,10 @@ export default function Results() {
                     Group Leader
                   </p>
                   <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.6rem, 5vw, 2.4rem)', color: 'var(--accent-gold)', marginBottom: '0.4rem' }}>
-                    {winner.full_name}
+                    {winner.name}
                   </h2>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                    {winner.borda_score} Borda points · Member #{winner.member_no}
+                    {winner.bordaScore} Borda points · Member #{winner.member_no}
                   </p>
                 </motion.div>
               )}
@@ -170,12 +171,12 @@ export default function Results() {
                         {/* Score bar */}
                         <div style={{ width: 80, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
                           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: i === 0 ? 'var(--accent-gold)' : 'var(--text-secondary)' }}>
-                            {m.borda_score} pts
+                            {m.bordaScore} pts
                           </span>
                           <div style={{ width: '100%', height: 4, background: 'var(--bg-base)', borderRadius: 2, overflow: 'hidden' }}>
                             <motion.div
                               initial={{ width: 0 }}
-                              animate={{ width: `${(m.borda_score / maxScore) * 100}%` }}
+                              animate={{ width: `${(m.bordaScore / maxScore) * 100}%` }}
                               transition={{ delay: 0.3 + i * 0.07, duration: 0.5 }}
                               style={{
                                 height: '100%',
@@ -205,7 +206,7 @@ export default function Results() {
                     title="Dictator"
                     color="#f87171"
                     colorDim="rgba(248,113,113,0.1)"
-                    member={banzhaf.dictator?.full_name || null}
+                    member={banzhaf.dictator?.name || null}
                     noMemberText="No dictator — power is distributed."
                     explanation="A dictator's support alone is enough to win. Every winning coalition includes them, and removing them causes every coalition to lose."
                   />
