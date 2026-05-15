@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, Reorder } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -19,6 +19,10 @@ export default function Ballot() {
   const [submitting, setSubmitting] = useState(false)
   const [ending, setEnding] = useState(false)
 
+  // Use refs to always have current values inside async callbacks
+  const totalCountRef = useRef(0)
+  const voteCountRef = useRef(0)
+
   useEffect(() => {
     if (!room || !currentMember) { navigate('/'); return }
     fetchData()
@@ -35,7 +39,8 @@ export default function Ballot() {
       }, payload => {
         if (payload.new.status === 'done') {
           updateRoomStatus('done')
-          setTimeout(() => navigate('/results'), 2000)
+          // Give Supabase 1.5s to finish writing all ballots before navigating
+          setTimeout(() => navigate('/results'), 1500)
         }
       })
       .subscribe()
@@ -51,6 +56,7 @@ export default function Ballot() {
     setCandidates(others)
     setRanking(others)
     setTotalCount(allMembers.length)
+    totalCountRef.current = allMembers.length
 
     const { data: myBallot } = await supabase
       .from('ballots').select('id').eq('room_id', room.id).eq('voter_id', currentMember.id).maybeSingle()
@@ -65,7 +71,10 @@ export default function Ballot() {
       .from('ballots')
       .select('id', { count: 'exact', head: true })
       .eq('room_id', room.id)
-    setVoteCount(count || 0)
+    const c = count || 0
+    setVoteCount(c)
+    voteCountRef.current = c
+    return c
   }
 
   async function submitBallot() {
@@ -82,15 +91,17 @@ export default function Ballot() {
         rankings,
       })
       if (ballotErr) throw ballotErr
-      
+
       setSubmitted(true)
       toast.success('Ballot submitted!')
-      await fetchVoteCount()
 
-      // Auto-end if all voted
-      const newCount = voteCount + 1
-      if (newCount >= totalCount) {
+      // Fetch the real count from DB after insert — don't rely on stale state
+      const freshCount = await fetchVoteCount()
+
+      // Auto-end if all members have voted
+      if (freshCount >= totalCountRef.current) {
         await supabase.from('rooms').update({ status: 'done' }).eq('id', room.id)
+        // Navigation handled by the realtime rooms UPDATE listener above
       }
     } catch (err) {
       console.error(err)
@@ -105,7 +116,9 @@ export default function Ballot() {
     const { error } = await supabase.from('rooms').update({ status: 'done' }).eq('id', room.id)
     if (error) { toast.error('Failed to end voting.'); setEnding(false); return }
     updateRoomStatus('done')
-    setTimeout(() => navigate('/results'), 2000)
+    // Navigation handled by the realtime rooms UPDATE listener above
+    // (fallback in case realtime misses it for the creator)
+    setTimeout(() => navigate('/results'), 1500)
   }
 
   if (!room || !currentMember) return null

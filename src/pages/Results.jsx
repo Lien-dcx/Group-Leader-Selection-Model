@@ -16,16 +16,16 @@ export default function Results() {
   const [firstChoice, setFirstChoice] = useState([])
   const [loading, setLoading] = useState(true)
   const [ending, setEnding] = useState(false)
+  const [attemptCount, setAttemptCount] = useState(0)
 
-  // Use a ref to track polling so we can cancel it cleanly
   const pollingRef = useRef(null)
-  const successRef = useRef(false)
+  const doneRef = useRef(false)
+  const attemptRef = useRef(0)
 
   useEffect(() => {
     if (!room || !currentMember) { navigate('/'); return }
 
-    // Start fetching immediately — no artificial delay
-    fetchResults()
+    poll()
 
     const channel = supabase
       .channel(`results-${room.id}`)
@@ -33,8 +33,7 @@ export default function Results() {
         event: 'INSERT', schema: 'public', table: 'ballots',
         filter: `room_id=eq.${room.id}`,
       }, () => {
-        // A new ballot arrived — re-fetch regardless of prior state
-        if (!successRef.current) fetchResults()
+        if (!doneRef.current) poll()
       })
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'rooms',
@@ -49,16 +48,30 @@ export default function Results() {
 
     return () => {
       supabase.removeChannel(channel)
-      if (pollingRef.current) clearTimeout(pollingRef.current)
+      clearPoll()
     }
   }, [room])
 
-  async function fetchResults() {
-    // Cancel any pending retry
+  function clearPoll() {
     if (pollingRef.current) {
       clearTimeout(pollingRef.current)
       pollingRef.current = null
     }
+  }
+
+  function scheduleNextPoll() {
+    clearPoll()
+    if (doneRef.current) return
+    // Back-off: 1s x3, then 2s x3, then 3s max
+    const delay = Math.min(1000 + Math.floor(attemptRef.current / 3) * 1000, 3000)
+    pollingRef.current = setTimeout(poll, delay)
+  }
+
+  async function poll() {
+    if (doneRef.current) return
+    clearPoll()
+    attemptRef.current++
+    setAttemptCount(attemptRef.current)
 
     try {
       const [{ data: members, error: mErr }, { data: ballots, error: bErr }] = await Promise.all([
@@ -67,19 +80,18 @@ export default function Results() {
       ])
 
       if (mErr || bErr || !members) {
-        console.error('Fetch error:', mErr || bErr)
-        scheduleRetry()
+        scheduleNextPoll()
         return
       }
 
-      if (ballots.length === 0) {
-        // No ballots yet — keep polling
-        scheduleRetry()
+      if (!ballots || ballots.length === 0) {
+        scheduleNextPoll()
         return
       }
 
-      // We have data — compute and render
-      successRef.current = true
+      // Got data — stop polling and render
+      doneRef.current = true
+      clearPoll()
 
       const r = computebordaScores(ballots, members)
 
@@ -102,16 +114,9 @@ export default function Results() {
       if (setResults) setResults(rWithFC)
       setLoading(false)
     } catch (err) {
-      console.error('fetchResults error:', err)
-      scheduleRetry()
+      console.error('poll() threw:', err)
+      scheduleNextPoll()
     }
-  }
-
-  function scheduleRetry() {
-    // Poll every 1.5 seconds until we get ballot data
-    pollingRef.current = setTimeout(() => {
-      if (!successRef.current) fetchResults()
-    }, 1500)
   }
 
   async function endSession() {
@@ -164,6 +169,11 @@ export default function Results() {
               <span /><span /><span />
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Tallying votes…</p>
+            {attemptCount > 2 && (
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 8 }}>
+                Still waiting for all ballots to be recorded…
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -185,7 +195,6 @@ export default function Results() {
               </motion.div>
             )}
 
-            {/* Leaderboard */}
             <div className="glass-card" style={{ marginBottom: '1.25rem', overflow: 'hidden' }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
                 <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>BORDA COUNT RANKINGS</h3>
@@ -238,7 +247,6 @@ export default function Results() {
               })}
             </div>
 
-            {/* Banzhaf Power Index */}
             <div className="glass-card" style={{ marginBottom: '1.25rem', overflow: 'hidden' }}>
               <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
                 <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>VOTING POWER ANALYSIS — Banzhaf Power Index</h3>
@@ -250,7 +258,6 @@ export default function Results() {
               </div>
             </div>
 
-            {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <button className="btn-ghost" onClick={exportCSV} style={{ fontSize: '0.85rem' }}>⬇ Export CSV</button>
