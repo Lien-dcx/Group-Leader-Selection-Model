@@ -18,17 +18,38 @@ export default function Results() {
   const [ending, setEnding] = useState(false)
 
   useEffect(() => {
-    if (!room || !currentMember) { navigate('/'); return }
-    fetchResults()
-  }, [room])
+  if (!room || !currentMember) { navigate('/'); return }
+  fetchResults()
+
+  const channel = supabase
+    .channel(`results-${room.id}`)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'ballots',
+      filter: `room_id=eq.${room.id}`,
+    }, () => fetchResults())
+    .on('postgres_changes', {
+      event: 'UPDATE', schema: 'public', table: 'rooms',
+      filter: `id=eq.${room.id}`,
+    }, payload => {
+      if (payload.new.status === 'done') fetchResults()
+    })
+    .subscribe()
+
+  return () => supabase.removeChannel(channel)
+}, [room])
 
   async function fetchResults() {
     const [{ data: members, error: mErr }, { data: ballots, error: bErr }] = await Promise.all([
       supabase.from('members').select('*').eq('room_id', room.id).order('member_no'),
       supabase.from('ballots').select('*').eq('room_id', room.id),
     ])
-    if (mErr || bErr) { toast.error('Failed to load results.'); setLoading(false); return }
+    //if (mErr || bErr) { toast.error('Failed to load results.'); setLoading(false); return }
     if (!members || !ballots) { setLoading(false); return }
+
+    if (ballots.length === 0) {
+    setTimeout(() => fetchResults(), 1000)
+    return
+  }
 
     const r = computebordaScores(ballots, members)
 
