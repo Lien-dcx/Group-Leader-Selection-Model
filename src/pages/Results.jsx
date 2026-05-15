@@ -18,25 +18,25 @@ export default function Results() {
   const [ending, setEnding] = useState(false)
 
   useEffect(() => {
-  if (!room || !currentMember) { navigate('/'); return }
-  fetchResults()
+    if (!room || !currentMember) { navigate('/'); return }
+    fetchResults()
 
-  const channel = supabase
-    .channel(`results-${room.id}`)
-    .on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'ballots',
-      filter: `room_id=eq.${room.id}`,
-    }, () => fetchResults())
-    .on('postgres_changes', {
-      event: 'UPDATE', schema: 'public', table: 'rooms',
-      filter: `id=eq.${room.id}`,
-    }, payload => {
-      if (payload.new.status === 'done') fetchResults()
-    })
-    .subscribe()
+    const channel = supabase
+      .channel(`results-${room.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'ballots',
+        filter: `room_id=eq.${room.id}`,
+      }, () => fetchResults())
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'rooms',
+        filter: `id=eq.${room.id}`,
+      }, payload => {
+        if (payload.new.status === 'done') fetchResults()
+      })
+      .subscribe()
 
-  return () => supabase.removeChannel(channel)
-}, [room])
+    return () => supabase.removeChannel(channel)
+  }, [room, currentMember])
 
   async function fetchResults() {
     const [{ data: members, error: mErr }, { data: ballots, error: bErr }] = await Promise.all([
@@ -47,9 +47,9 @@ export default function Results() {
     if (!members || !ballots) { setLoading(false); return }
 
     if (ballots.length === 0) {
-    setTimeout(() => fetchResults(), 1000)
-    return
-  }
+      setTimeout(() => fetchResults(), 1000)
+      return
+    }
 
     const r = computebordaScores(ballots, members)
 
