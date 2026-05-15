@@ -36,12 +36,9 @@ export default function Results() {
         event: 'UPDATE', schema: 'public', table: 'rooms',
         filter: `id=eq.${room.id}`,
       }, payload => {
-        if (payload.new.status === 'done') {
+        if (payload.new.status === 'done' && !isCreator) {
           updateRoomStatus('done')
-          if (!isCreator) {
-            // Small delay so store can sync before navigating
-            setTimeout(() => navigate('/goodbye'), 500)
-          }
+          setTimeout(() => navigate('/goodbye'), 500)
         }
       })
       .subscribe()
