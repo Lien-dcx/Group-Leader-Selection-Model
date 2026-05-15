@@ -72,11 +72,28 @@ export function computebordaScores(ballots, members) {
 export function computeProjectedWinRates(members) {
   const total = members.reduce((sum, m) => sum + m.performance_rating, 0)
 
-  return members.map(m => ({
+  if (total === 0) {
+    return members.map(m => ({ ...m, projectedWinRate: 0 }))
+  }
+
+  // Compute exact percentages scaled to 1 decimal place (i.e., work in tenths)
+  const exact = members.map(m => (m.performance_rating / total) * 1000) // tenths of a percent
+  const floored = exact.map(v => Math.floor(v))
+  const remainders = exact.map((v, i) => ({ index: i, remainder: v - floored[i] }))
+
+  // Total tenths allocated so far
+  const totalFloored = floored.reduce((s, v) => s + v, 0)
+  const leftover = 1000 - totalFloored // how many tenths remain to distribute
+
+  // Give 1 tenth to the members with the largest remainders
+  remainders
+    .sort((a, b) => b.remainder - a.remainder)
+    .slice(0, leftover)
+    .forEach(({ index }) => { floored[index]++ })
+
+  return members.map((m, i) => ({
     ...m,
-    projectedWinRate: total > 0
-      ? Math.round((m.performance_rating / total) * 100 * 10) / 10
-      : 0,
+    projectedWinRate: floored[i] / 10, // convert back to percent with 1 decimal
   }))
 }
 
