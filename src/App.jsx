@@ -27,19 +27,19 @@ export default function App() {
             fontSize: '0.875rem',
           },
           success: { iconTheme: { primary: '#4F8EF7', secondary: '#fff' } },
-          error:   { iconTheme: { primary: '#f87171', secondary: '#fff' } },
+          error: { iconTheme: { primary: '#f87171', secondary: '#fff' } },
         }}
       />
       <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
-          <Route path="/"            element={<Home />} />
-          <Route path="/create"      element={<CreateRoom />} />
-          <Route path="/join"        element={<JoinRoom />} />
-          <Route path="/lobby"       element={<Lobby />} />
-          <Route path="/pre-vote"     element={<PreVote />} />
-          <Route path="/ballot"      element={<Ballot />} />
-          <Route path="/results"     element={<Results />} />
-          <Route path="/goodbye"     element={<Goodbye />} />
+        <Routes location={location}>
+          <Route path="/" element={<Home key="home" />} />
+          <Route path="/create" element={<CreateRoom key="create" />} />
+          <Route path="/join" element={<JoinRoom key="join" />} />
+          <Route path="/lobby" element={<Lobby key="lobby" />} />
+          <Route path="/pre-vote" element={<PreVote key="pre-vote" />} />
+          <Route path="/ballot" element={<Ballot key="ballot" />} />
+          <Route path="/results" element={<Results key="results" />} />
+          <Route path="/goodbye" element={<Goodbye key="goodbye" />} />
         </Routes>
       </AnimatePresence>
     </>
