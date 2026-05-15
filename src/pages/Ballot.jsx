@@ -35,7 +35,7 @@ export default function Ballot() {
       }, payload => {
         if (payload.new.status === 'done') {
           updateRoomStatus('done')
-          navigate('/results')
+          setTimeout(() => navigate('/results'), 2000)
         }
       })
       .subscribe()
@@ -82,7 +82,7 @@ export default function Ballot() {
         rankings,
       })
       if (ballotErr) throw ballotErr
-
+      
       setSubmitted(true)
       toast.success('Ballot submitted!')
       await fetchVoteCount()
@@ -105,7 +105,7 @@ export default function Ballot() {
     const { error } = await supabase.from('rooms').update({ status: 'done' }).eq('id', room.id)
     if (error) { toast.error('Failed to end voting.'); setEnding(false); return }
     updateRoomStatus('done')
-    navigate('/results')
+    setTimeout(() => navigate('/results'), 2000)
   }
 
   if (!room || !currentMember) return null
