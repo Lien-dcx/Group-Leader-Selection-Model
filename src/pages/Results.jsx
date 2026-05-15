@@ -16,13 +16,16 @@ export default function Results() {
   const [firstChoice, setFirstChoice] = useState([])
   const [loading, setLoading] = useState(true)
   const [ending, setEnding] = useState(false)
-  const fetchedRef = useRef(false)
+
+  // Use a ref to track polling so we can cancel it cleanly
+  const pollingRef = useRef(null)
+  const successRef = useRef(false)
 
   useEffect(() => {
     if (!room || !currentMember) { navigate('/'); return }
 
-    // Fetch on mount with a small buffer so all ballots are written
-    setTimeout(() => fetchResults(), 800)
+    // Start fetching immediately — no artificial delay
+    fetchResults()
 
     const channel = supabase
       .channel(`results-${room.id}`)
@@ -30,7 +33,8 @@ export default function Results() {
         event: 'INSERT', schema: 'public', table: 'ballots',
         filter: `room_id=eq.${room.id}`,
       }, () => {
-        if (!fetchedRef.current) fetchResults()
+        // A new ballot arrived — re-fetch regardless of prior state
+        if (!successRef.current) fetchResults()
       })
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'rooms',
@@ -43,44 +47,71 @@ export default function Results() {
       })
       .subscribe()
 
-    return () => supabase.removeChannel(channel)
+    return () => {
+      supabase.removeChannel(channel)
+      if (pollingRef.current) clearTimeout(pollingRef.current)
+    }
   }, [room])
 
   async function fetchResults() {
-    const [{ data: members, error: mErr }, { data: ballots, error: bErr }] = await Promise.all([
-      supabase.from('members').select('*').eq('room_id', room.id).order('member_no'),
-      supabase.from('ballots').select('*').eq('room_id', room.id),
-    ])
-
-    if (!members || !ballots) { setLoading(false); return }
-
-    if (ballots.length === 0) {
-      setTimeout(() => fetchResults(), 1000)
-      return
+    // Cancel any pending retry
+    if (pollingRef.current) {
+      clearTimeout(pollingRef.current)
+      pollingRef.current = null
     }
 
-    fetchedRef.current = true
+    try {
+      const [{ data: members, error: mErr }, { data: ballots, error: bErr }] = await Promise.all([
+        supabase.from('members').select('*').eq('room_id', room.id).order('member_no'),
+        supabase.from('ballots').select('*').eq('room_id', room.id),
+      ])
 
-    const r = computebordaScores(ballots, members)
+      if (mErr || bErr || !members) {
+        console.error('Fetch error:', mErr || bErr)
+        scheduleRetry()
+        return
+      }
 
-    const fcMap = {}
-    members.forEach(m => { fcMap[m.id] = 0 })
-    ballots.forEach(ballot => {
-      const top = ballot.rankings.find(entry => entry.rank === 1)
-      if (top && fcMap[top.candidate_id] !== undefined) fcMap[top.candidate_id]++
-    })
-    const rWithFC = r.map(m => ({ ...m, first_choice_votes: fcMap[m.id] || 0 }))
+      if (ballots.length === 0) {
+        // No ballots yet — keep polling
+        scheduleRetry()
+        return
+      }
 
-    const classified = classifyPowerRoles(rWithFC)
-    const dictator = classified.find(m => m.powerRole === 'dictator') || null
-    const vetoPlayers = classified.filter(m => m.powerRole === 'veto')
-    const dummies = classified.filter(m => m.powerRole === 'dummy')
+      // We have data — compute and render
+      successRef.current = true
 
-    setRanked(rWithFC)
-    setFirstChoice(rWithFC)
-    setBanzhaf({ dictator, vetoPlayers, dummies })
-    if (setResults) setResults(rWithFC)
-    setLoading(false)
+      const r = computebordaScores(ballots, members)
+
+      const fcMap = {}
+      members.forEach(m => { fcMap[m.id] = 0 })
+      ballots.forEach(ballot => {
+        const top = ballot.rankings.find(entry => entry.rank === 1)
+        if (top && fcMap[top.candidate_id] !== undefined) fcMap[top.candidate_id]++
+      })
+      const rWithFC = r.map(m => ({ ...m, first_choice_votes: fcMap[m.id] || 0 }))
+
+      const classified = classifyPowerRoles(rWithFC)
+      const dictator = classified.find(m => m.powerRole === 'dictator') || null
+      const vetoPlayers = classified.filter(m => m.powerRole === 'veto')
+      const dummies = classified.filter(m => m.powerRole === 'dummy')
+
+      setRanked(rWithFC)
+      setFirstChoice(rWithFC)
+      setBanzhaf({ dictator, vetoPlayers, dummies })
+      if (setResults) setResults(rWithFC)
+      setLoading(false)
+    } catch (err) {
+      console.error('fetchResults error:', err)
+      scheduleRetry()
+    }
+  }
+
+  function scheduleRetry() {
+    // Poll every 1.5 seconds until we get ballot data
+    pollingRef.current = setTimeout(() => {
+      if (!successRef.current) fetchResults()
+    }, 1500)
   }
 
   async function endSession() {
@@ -128,7 +159,12 @@ export default function Results() {
         </motion.div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Tallying votes...</div>
+          <div style={{ textAlign: 'center', padding: '3rem' }}>
+            <div className="dot-pulse" style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '1rem' }}>
+              <span /><span /><span />
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Tallying votes…</p>
+          </div>
         ) : (
           <>
             {winner && (
