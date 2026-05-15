@@ -9,7 +9,7 @@ import PageWrapper from '../components/PageWrapper'
 
 export default function Results() {
   const navigate = useNavigate()
-  const { room, currentMember, setResults, updateRoomStatus  } = useAppStore()
+  const { room, currentMember, setResults } = useAppStore()
   const isCreator = currentMember?.is_creator
   const [ranked, setRanked] = useState([])
   const [banzhaf, setBanzhaf] = useState({ dictator: null, vetoPlayers: [], dummies: [] })
@@ -32,26 +32,6 @@ export default function Results() {
       filter: `id=eq.${room.id}`,
     }, payload => {
       if (payload.new.status === 'done') fetchResults()
-    })
-    .subscribe()
-
-  return () => supabase.removeChannel(channel)
-}, [room])
-
-useEffect(() => {
-  if (!room || !currentMember) { navigate('/'); return }
-  fetchResults()
-
-  const channel = supabase
-    .channel(`results-${room.id}`)
-    .on('postgres_changes', {
-      event: 'UPDATE', schema: 'public', table: 'rooms',
-      filter: `id=eq.${room.id}`,
-    }, payload => {
-      if (payload.new.status === 'done' && !currentMember.is_creator) {
-        updateRoomStatus('done')
-        navigate('/goodbye')
-      }
     })
     .subscribe()
 
