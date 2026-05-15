@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
@@ -9,47 +9,60 @@ import PageWrapper from '../components/PageWrapper'
 
 export default function Results() {
   const navigate = useNavigate()
-  const { room, currentMember, setResults } = useAppStore()
+  const { room, currentMember, setResults, updateRoomStatus } = useAppStore()
   const isCreator = currentMember?.is_creator
   const [ranked, setRanked] = useState([])
   const [banzhaf, setBanzhaf] = useState({ dictator: null, vetoPlayers: [], dummies: [] })
   const [firstChoice, setFirstChoice] = useState([])
   const [loading, setLoading] = useState(true)
   const [ending, setEnding] = useState(false)
+  const fetchedRef = useRef(false)
 
   useEffect(() => {
     if (!room || !currentMember) { navigate('/'); return }
-    fetchResults()
+
+    // Fetch on mount with a small buffer so all ballots are written
+    setTimeout(() => fetchResults(), 800)
 
     const channel = supabase
       .channel(`results-${room.id}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'ballots',
         filter: `room_id=eq.${room.id}`,
-      }, () => fetchResults())
+      }, () => {
+        if (!fetchedRef.current) fetchResults()
+      })
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'rooms',
         filter: `id=eq.${room.id}`,
       }, payload => {
-        if (payload.new.status === 'done') fetchResults()
+        if (payload.new.status === 'done') {
+          updateRoomStatus('done')
+          if (!isCreator) {
+            // Small delay so store can sync before navigating
+            setTimeout(() => navigate('/goodbye'), 500)
+          }
+        }
       })
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [room, currentMember])
+  }, [room])
 
   async function fetchResults() {
     const [{ data: members, error: mErr }, { data: ballots, error: bErr }] = await Promise.all([
       supabase.from('members').select('*').eq('room_id', room.id).order('member_no'),
       supabase.from('ballots').select('*').eq('room_id', room.id),
     ])
-    //if (mErr || bErr) { toast.error('Failed to load results.'); setLoading(false); return }
+
     if (!members || !ballots) { setLoading(false); return }
 
     if (ballots.length === 0) {
       setTimeout(() => fetchResults(), 1000)
       return
     }
+
+    fetchedRef.current = true
 
     const r = computebordaScores(ballots, members)
 
@@ -75,8 +88,10 @@ export default function Results() {
 
   async function endSession() {
     setEnding(true)
-    useAppStore.setState({ results: ranked })
-    await supabase.from('rooms').update({ status: 'done' }).eq('id', room.id)
+    setResults(ranked)
+    const { error } = await supabase.from('rooms').update({ status: 'done' }).eq('id', room.id)
+    if (error) { toast.error('Failed to end session.'); setEnding(false); return }
+    updateRoomStatus('done')
     navigate('/goodbye')
   }
 
