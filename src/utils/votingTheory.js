@@ -147,33 +147,24 @@ export function classifyPowerRoles(scoredMembers) {
 
   const totalWeight = scoredMembers.reduce((s, m) => s + m.bordaScore, 0)
 
-  // If all scores are 0, everyone is a dummy
   if (totalWeight === 0) {
     return scoredMembers.map(m => ({ ...m, powerRole: 'dummy' }))
   }
 
-  // Quota: need strictly more than half
   const quota = Math.floor(totalWeight / 2) + 1
-
-  // Count how many winning coalitions each member is pivotal in
   const pivotalCount = new Array(n).fill(0)
   const totalWinningCoalitions = { count: 0 }
-
-  // Enumerate all 2^n subsets (feasible for n ≤ 10)
   const numSubsets = 1 << n
+
   for (let mask = 1; mask < numSubsets; mask++) {
-    const coalitionWeight = scoredMembers.reduce((sum, m, i) => {
-      return sum + ((mask >> i) & 1 ? m.bordaScore : 0)
-    }, 0)
+    const coalitionWeight = scoredMembers.reduce((sum, m, i) =>
+      sum + ((mask >> i) & 1 ? m.bordaScore : 0), 0)
 
     if (coalitionWeight >= quota) {
       totalWinningCoalitions.count++
-      // Check each member's pivotality
       scoredMembers.forEach((m, i) => {
         if ((mask >> i) & 1) {
-          // Member i is in this coalition — check if removing them loses
-          const withoutMember = coalitionWeight - m.bordaScore
-          if (withoutMember < quota) {
+          if (coalitionWeight - m.bordaScore < quota) {
             pivotalCount[i]++
           }
         }
@@ -191,27 +182,13 @@ export function classifyPowerRoles(scoredMembers) {
     let powerRole = 'regular'
 
     if (m.bordaScore === 0) {
-      // Zero Borda score → never pivotal → dummy
       powerRole = 'dummy'
-    } else if (pivotalCount[i] === totalWinningCoalitions.count) {
-      // Pivotal in EVERY winning coalition → dictator
+    } else if (m.bordaScore >= quota) {
+      // ✅ True dictator: their score alone wins — no coalition needed
       powerRole = 'dictator'
-    } else if (pivotalCount[i] > 0) {
-      // Is it a veto player? Check if every winning coalition includes them
-      let isVeto = true
-      for (let mask = 1; mask < numSubsets; mask++) {
-        const coalitionWeight = scoredMembers.reduce((sum, mem, j) => {
-          return sum + ((mask >> j) & 1 ? mem.bordaScore : 0)
-        }, 0)
-        if (coalitionWeight >= quota) {
-          if (!((mask >> i) & 1)) {
-            // This winning coalition does NOT include member i
-            isVeto = false
-            break
-          }
-        }
-      }
-      powerRole = isVeto ? 'veto' : 'regular'
+    } else if (pivotalCount[i] === totalWinningCoalitions.count) {
+      // ✅ Veto: appears in every winning coalition, but can't win alone
+      powerRole = 'veto'
     }
 
     return { ...m, banzhafPower, powerRole }
